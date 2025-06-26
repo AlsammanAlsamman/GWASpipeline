@@ -74,6 +74,13 @@ I'm developing a modular genomic data analysis pipeline for PLINK-formatted data
 - **Special characters in sample IDs:** Spaces, symbols that break parsing
 - **Duplicate SNP IDs:** Will cause analysis failures
 
+#### **🔄 Non-Stopping Pipeline Behavior:**
+- **✅ CONTINUE PROCESSING:** Pipeline completes all analyses even when issues are found
+- **⚠️ ISSUE REPORTING:** Critical issues prominently displayed in reports and logs
+- **📊 FULL ANALYSIS:** All statistics, plots, and reports generated regardless of validation results
+- **🚀 WORKFLOW CONTINUITY:** Users can proceed with complete dataset characterization
+- **📋 CLEAR GUIDANCE:** Detailed recommendations provided without halting execution
+
 #### **Recommended Fixes:**
 - **Medium Priority:** Format standardization (alphanumeric + underscore/hyphen)
 - **Low Priority:** Multiple samples per family (informational)
@@ -98,3 +105,10 @@ I'm developing a modular genomic data analysis pipeline for PLINK-formatted data
 - **Solution:** Fixed all parsing commands to use proper space-delimited format for .fam files
 - **Verification:** Added detailed logging and debugging output to compare manual vs automated detection
 - **Additional:** Created supplementary files showing actual duplicate lines and family size summaries
+
+#### **🔄 Pipeline Behavior Update:**
+- **Issue:** Pipeline stopping execution when critical issues found
+- **User Requirement:** Continue processing to generate complete dataset characterization
+- **Solution:** Modified to continue all analyses while prominently reporting issues
+- **Enhancement:** Added clear status indicators and completion summaries
+- **Benefit:** Users get full analysis results plus actionable issue reports

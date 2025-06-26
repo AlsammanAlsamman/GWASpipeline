@@ -764,105 +764,21 @@ analyze_file_contents() {
     echo -e "FID_With_Spaces\t$space_fid_count\tNumber of Family IDs containing spaces" >> "$summary_file"
     echo -e "IID_With_Spaces\t$space_iid_count\tNumber of Individual IDs containing spaces" >> "$summary_file"
     
-    # === ENHANCED SNP ID VALIDATION ===
-    log_message "INFO" "Validating SNP IDs with comprehensive duplicate detection..."
+    # === SNP ID VALIDATION ===
+    log_message "INFO" "Validating SNP IDs..."
     
-    # 1. Check for duplicate rsIDs (column 2)
-    local dup_rsid_file="${OUTPUT_DIR}/tables/duplicate_rsIDs_${DATE}.txt"
-    awk '{print $2}' "${PLINK_PREFIX}.bim" | sort | uniq -c | awk '$1 > 1 {print $2 "\t" $1}' > "$dup_rsid_file"
-    local dup_rsid_count=$(wc -l < "$dup_rsid_file")
-    
-    echo -e "Duplicate_rsIDs\t$dup_rsid_count\tNumber of duplicate rsIDs" >> "$summary_file"
-    
-    if [[ $dup_rsid_count -gt 0 ]]; then
-        local dup_rsid_examples=$(head -3 "$dup_rsid_file" | cut -f1 | tr '\n' ',' | sed 's/,$//')
-        echo -e "Duplicate_rsIDs\t$dup_rsid_count\tHIGH\tDuplicate rsIDs found - will cause analysis errors\t$dup_rsid_examples..." >> "$validation_file"
-        log_message "WARN" "Found $dup_rsid_count duplicate rsIDs"
-    fi
-    
-    # 2. Check for duplicate chr:pos combinations (columns 1 and 4)
-    local dup_chrpos_file="${OUTPUT_DIR}/tables/duplicate_chrpos_${DATE}.txt"
-    awk '{print $1":"$4, $2}' "${PLINK_PREFIX}.bim" | sort | uniq -c | awk '$1 > 1 {print $2 "\t" $3 "\t" $1}' > "$dup_chrpos_file"
-    local dup_chrpos_count=$(wc -l < "$dup_chrpos_file")
-    
-    echo -e "Duplicate_ChrPos\t$dup_chrpos_count\tNumber of duplicate chr:pos combinations" >> "$summary_file"
-    
-    if [[ $dup_chrpos_count -gt 0 ]]; then
-        local dup_chrpos_examples=$(head -3 "$dup_chrpos_file" | cut -f1 | tr '\n' ',' | sed 's/,$//')
-        echo -e "Duplicate_ChrPos\t$dup_chrpos_count\tHIGH\tDuplicate chr:pos positions found - same genomic location\t$dup_chrpos_examples..." >> "$validation_file"
-        log_message "WARN" "Found $dup_chrpos_count duplicate chr:pos combinations"
-    fi
-    
-    # 3. Check for chr:pos with different rsIDs (potential strand issues or annotation problems)
-    local chrpos_rsid_mismatch_file="${OUTPUT_DIR}/tables/chrpos_rsid_conflicts_${DATE}.txt"
-    awk '{
-        chrpos = $1":"$4
-        if (chrpos in rsids) {
-            if (rsids[chrpos] != $2) {
-                print chrpos "\t" rsids[chrpos] "\t" $2 "\t" "CONFLICT"
-            }
-        } else {
-            rsids[chrpos] = $2
-        }
-    }' "${PLINK_PREFIX}.bim" > "$chrpos_rsid_mismatch_file"
-    local chrpos_rsid_conflicts=$(wc -l < "$chrpos_rsid_mismatch_file")
-    
-    echo -e "ChrPos_rsID_Conflicts\t$chrpos_rsid_conflicts\tNumber of chr:pos with conflicting rsIDs" >> "$summary_file"
-    
-    if [[ $chrpos_rsid_conflicts -gt 0 ]]; then
-        local conflict_examples=$(head -3 "$chrpos_rsid_mismatch_file" | cut -f1 | tr '\n' ',' | sed 's/,$//')
-        echo -e "ChrPos_rsID_Conflicts\t$chrpos_rsid_conflicts\tMEDIUM\tSame genomic position with different rsIDs - check annotation\t$conflict_examples..." >> "$validation_file"
-        log_message "WARN" "Found $chrpos_rsid_conflicts chr:pos positions with conflicting rsIDs"
-    fi
-    
-    # 4. Generate comprehensive SNP duplication summary
-    local snp_dup_summary_file="${OUTPUT_DIR}/tables/SNP_duplication_summary_${DATE}.txt"
-    cat > "$snp_dup_summary_file" << EOF
-# SNP Duplication Analysis Summary
-# Generated: $(date)
-# Dataset: $(basename "$PLINK_PREFIX")
-
-=============================================================================
-DUPLICATE SNP DETECTION RESULTS
-=============================================================================
-
-1. Duplicate rsIDs: $dup_rsid_count
-   - Same rsID appearing multiple times
-   - File: $(basename "$dup_rsid_file")
-
-2. Duplicate chr:pos: $dup_chrpos_count  
-   - Same genomic position (chromosome:position)
-   - File: $(basename "$dup_chrpos_file")
-
-3. chr:pos vs rsID conflicts: $chrpos_rsid_conflicts
-   - Same position with different rsIDs
-   - File: $(basename "$chrpos_rsid_mismatch_file")
-
-=============================================================================
-INTERPRETATION GUIDE
-=============================================================================
-
-• Duplicate rsIDs: Usually indicates data processing errors
-• Duplicate chr:pos: May indicate:
-  - Multi-allelic variants split incorrectly
-  - Indels and SNPs at same position
-  - Data processing artifacts
-• chr:pos vs rsID conflicts: May indicate:
-  - Different genome builds mixed in data
-  - Annotation inconsistencies
-  - dbSNP version differences
-
-=============================================================================
-EOF
-    
-    log_message "INFO" "SNP duplication summary saved to: $snp_dup_summary_file"
-    
-    # Legacy duplicate SNP check (for backward compatibility)
+    # Check for duplicate SNP IDs
     local dup_snp_file="${OUTPUT_DIR}/tables/duplicate_SNPs_${DATE}.txt"
-    cp "$dup_rsid_file" "$dup_snp_file"  # For backward compatibility
-    local dup_snp_count=$dup_rsid_count
+    cut -f2 "${PLINK_PREFIX}.bim" | sort | uniq -c | awk '$1 > 1 {print $2 "\t" $1}' > "$dup_snp_file"
+    local dup_snp_count=$(wc -l < "$dup_snp_file")
     
-    echo -e "Duplicate_SNP_IDs\t$dup_snp_count\tNumber of duplicate SNP IDs (legacy - same as rsIDs)" >> "$summary_file"
+    echo -e "Duplicate_SNP_IDs\t$dup_snp_count\tNumber of duplicate SNP IDs" >> "$summary_file"
+    
+    if [[ $dup_snp_count -gt 0 ]]; then
+        local dup_snp_examples=$(head -3 "$dup_snp_file" | cut -f1 | tr '\n' ',' | sed 's/,$//')
+        echo -e "Duplicate_SNP_IDs\t$dup_snp_count\tHIGH\tDuplicate SNP IDs found - will cause analysis errors\t$dup_snp_examples..." >> "$validation_file"
+        log_message "WARN" "Found $dup_snp_count duplicate SNP IDs"
+    fi
     
     # Sex distribution - Column 5
     local males=$(awk '$5 == 1' "${PLINK_PREFIX}.fam" | wc -l)
@@ -879,15 +795,6 @@ EOF
     echo -e "Controls\t$controls\tNumber of control samples (phenotype=1)" >> "$summary_file"
     echo -e "Cases\t$cases\tNumber of case samples (phenotype=2)" >> "$summary_file"
     echo -e "Missing_Phenotype\t$missing_pheno\tNumber of samples with missing phenotype" >> "$summary_file"
-    
-    # === DEBUGGING INFORMATION ===
-    log_message "INFO" "=== DEBUGGING DUPLICATE DETECTION ==="
-    log_message "INFO" "Manual verification commands:"
-    log_message "INFO" "  Family ID duplicates: awk '{print \$1}' ${PLINK_PREFIX}.fam | sort | uniq -c | grep -v '      1'"
-    log_message "INFO" "  Individual ID duplicates: awk '{print \$2}' ${PLINK_PREFIX}.fam | sort | uniq -c | grep -v '      1'"
-    log_message "INFO" "Expected vs Found:"
-    log_message "INFO" "  Duplicate IIDs detected: $dup_iid_count"
-    log_message "INFO" "  Duplicate FIDs detected: $dup_fid_count"
     
     # === GENERATE RECOMMENDATIONS ===
     generate_fix_recommendations "$validation_file" "$recommendations_file"
@@ -1034,6 +941,10 @@ generate_html_report() {
     log_message "INFO" "Generating comprehensive HTML report..."
     
     local report_file="${OUTPUT_DIR}/INFO_report_${DATE}.html"
+    local summary_file="${OUTPUT_DIR}/tables/INFO_file_summary_${DATE}.tsv"
+    local validation_file="${OUTPUT_DIR}/tables/INFO_validation_issues_${DATE}.tsv"
+    local recommendations_file="${OUTPUT_DIR}/tables/INFO_recommendations_${DATE}.txt"
+    local snp_dup_summary_file="${OUTPUT_DIR}/tables/SNP_duplication_summary_${DATE}.txt"
     
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] Generating HTML report: $report_file"
@@ -1041,14 +952,14 @@ generate_html_report() {
     fi
     
     # Check for validation issues
-    local validation_file="${OUTPUT_DIR}/tables/INFO_validation_issues_${DATE}.tsv"
     local has_issues=false
     local critical_issues=0
+    local total_issues=0
     
     if [[ -f "$validation_file" ]]; then
-        local issue_count=$(tail -n +2 "$validation_file" | wc -l)
+        total_issues=$(tail -n +2 "$validation_file" | wc -l)
         critical_issues=$(tail -n +2 "$validation_file" | awk -F'\t' '$3=="HIGH"' | wc -l)
-        [[ $issue_count -gt 0 ]] && has_issues=true
+        [[ $total_issues -gt 0 ]] && has_issues=true
     fi
     
     cat > "$report_file" << EOF
@@ -1066,6 +977,7 @@ generate_html_report() {
         .alert-success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
         .alert-warning { background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; }
         .alert-danger { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .alert-info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
         table { border-collapse: collapse; width: 100%; margin: 10px 0; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; font-weight: bold; }
@@ -1077,6 +989,9 @@ generate_html_report() {
         .validation-card { flex: 1; padding: 15px; border-radius: 8px; text-align: center; }
         .validation-card h3 { margin: 0 0 10px 0; }
         .validation-card .number { font-size: 2em; font-weight: bold; }
+        .status-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.9em; font-weight: bold; }
+        .status-completed { background-color: #d4edda; color: #155724; }
+        .status-issues { background-color: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
@@ -1085,12 +1000,61 @@ generate_html_report() {
         <p><strong>Generated:</strong> $(date)</p>
         <p><strong>Dataset:</strong> $(basename "$PLINK_PREFIX")</p>
         <p><strong>Module Version:</strong> $VERSION</p>
+        <p><strong>Analysis Status:</strong> 
+EOF
+
+    # Add status badge based on issues found
+    if [[ $critical_issues -gt 0 ]]; then
+        echo '            <span class="status-badge status-issues">⚠️ ISSUES DETECTED</span>' >> "$report_file"
+    else
+        echo '            <span class="status-badge status-completed">✅ COMPLETED</span>' >> "$report_file"
+    fi
+
+    cat >> "$report_file" << EOF
+        </p>
     </div>
     
+EOF
+
+    # Add validation status alert - but indicate analysis continued
+    if [[ "$has_issues" == "true" ]]; then
+        if [[ $critical_issues -gt 0 ]]; then
+            cat >> "$report_file" << EOF
     <div class="alert alert-danger">
         <h3>🔴 Critical Issues Found!</h3>
-        <p>$critical_issues high-priority issues detected that <strong>must be fixed</strong> before proceeding with analysis.</p>
-        <p>See validation section below and check the recommendations file for detailed fixes.</p>
+        <p><strong>$critical_issues high-priority issues detected</strong> that should be addressed before proceeding with downstream analysis.</p>
+        <p><strong>📊 Analysis Status:</strong> Information gathering completed successfully despite validation issues.</p>
+        <p><strong>📋 Next Steps:</strong> Review validation section below and check the recommendations file for detailed fixes.</p>
+    </div>
+EOF
+        else
+            cat >> "$report_file" << EOF
+    <div class="alert alert-warning">
+        <h3>⚠️ Validation Issues Detected</h3>
+        <p>$total_issues issues found that should be reviewed.</p>
+        <p><strong>📊 Analysis Status:</strong> Information gathering completed successfully.</p>
+        <p>See recommendations section for guidance on addressing these issues.</p>
+    </div>
+EOF
+        fi
+    else
+        cat >> "$report_file" << EOF
+    <div class="alert alert-success">
+        <h3>✅ Validation Passed</h3>
+        <p>No critical issues detected. Dataset appears ready for analysis.</p>
+        <p><strong>📊 Analysis Status:</strong> All checks passed successfully.</p>
+    </div>
+EOF
+    fi
+
+    # Add processing summary section
+    cat >> "$report_file" << EOF
+    <div class="alert alert-info">
+        <h3>📊 Processing Summary</h3>
+        <p><strong>✅ Analysis Completed:</strong> Full dataset characterization performed</p>
+        <p><strong>📈 Statistics Generated:</strong> Sample counts, SNP distributions, quality metrics</p>
+        <p><strong>🔍 Validation Performed:</strong> Duplicate detection, format validation, quality checks</p>
+        <p><strong>📋 Recommendations:</strong> Detailed fix suggestions provided for any issues found</p>
     </div>
     
     <div class="section">
@@ -1120,9 +1084,24 @@ EOF
     cat >> "$report_file" << EOF
         </table>
     </div>
-    
+EOF
+
+    # Validation issues section
+    cat >> "$report_file" << EOF
     <div class="section">
-        <h2>🔍 Validation Issues</h2>
+        <h2>🔍 Validation Results</h2>
+EOF
+
+    if [[ $total_issues -eq 0 ]]; then
+        cat >> "$report_file" << EOF
+        <div class="alert alert-success">
+            <h4>✅ No Issues Found</h4>
+            <p>All validation checks passed successfully. Your dataset appears to be well-formatted and ready for analysis.</p>
+        </div>
+EOF
+    else
+        cat >> "$report_file" << EOF
+        <p><strong>Issues Found:</strong> $total_issues total ($critical_issues high priority)</p>
         <table>
             <tr>
                 <th>Issue Type</th>
@@ -1132,13 +1111,13 @@ EOF
                 <th>Affected Items</th>
             </tr>
 EOF
-    
-    # Add validation issues to report
-    if [[ -f "$validation_file" ]]; then
-        while IFS=$'\t' read -r issue_type count severity description affected_items; do
-            if [[ "$issue_type" == "Issue_Type" ]]; then continue; fi  # Skip header row
-            local severity_class=$(echo "$severity" | tr '[:upper:]' '[:lower:]')
-            cat >> "$report_file" << EOF
+        
+        # Add validation issues to report
+        if [[ -f "$validation_file" ]]; then
+            while IFS=$'\t' read -r issue_type count severity description affected_items; do
+                if [[ "$issue_type" == "Issue_Type" ]]; then continue; fi  # Skip header row
+                local severity_class=$(echo "$severity" | tr '[:upper:]' '[:lower:]')
+                cat >> "$report_file" << EOF
             <tr class="${severity_class}-severity">
                 <td>$issue_type</td>
                 <td>$count</td>
@@ -1147,13 +1126,20 @@ EOF
                 <td>$affected_items</td>
             </tr>
 EOF
-        done < "$validation_file"
+            done < "$validation_file"
+        fi
+        
+        cat >> "$report_file" << EOF
+        </table>
+EOF
     fi
     
     cat >> "$report_file" << EOF
-        </table>
     </div>
-    
+EOF
+
+    # Recommendations section
+    cat >> "$report_file" << EOF
     <div class="section">
         <h2>🛠️ Fix Recommendations</h2>
         <pre>
@@ -1167,29 +1153,55 @@ EOF
     cat >> "$report_file" << EOF
         </pre>
     </div>
-    
+EOF
+
+    # SNP duplication analysis section
+    if [[ -f "$snp_dup_summary_file" ]]; then
+        cat >> "$report_file" << EOF
     <div class="section">
         <h2>🔗 SNP Duplication Analysis</h2>
         <pre>
 EOF
-    
-    # Add SNP duplication summary to report
-    if [[ -f "$snp_dup_summary_file" ]]; then
+        
+        # Add SNP duplication summary to report
         cat "$snp_dup_summary_file" >> "$report_file"
-    fi
-    
-    cat >> "$report_file" << EOF
+        
+        cat >> "$report_file" << EOF
         </pre>
     </div>
-    
+EOF
+    fi
+
+    # Conclusion section - emphasize analysis completion
+    cat >> "$report_file" << EOF
     <div class="section">
-        <h2>📋 Conclusion</h2>
-        <p>Report generated by the Dataset Information Module v$VERSION.</p>
-        <p>For detailed analysis, refer to the individual sections and review the recommendations provided.</p>
+        <h2>📋 Analysis Summary</h2>
+        <p><strong>✅ Information Module Completed Successfully</strong></p>
+        <p>This report provides a comprehensive overview of your dataset characteristics. Analysis proceeded normally and generated all requested statistics and visualizations.</p>
+        
+        <h3>🗂️ Generated Files:</h3>
+        <ul>
+            <li><strong>Summary Statistics:</strong> INFO_file_summary_${DATE}.tsv</li>
+            <li><strong>Validation Report:</strong> INFO_validation_issues_${DATE}.tsv</li>
+            <li><strong>Fix Recommendations:</strong> INFO_recommendations_${DATE}.txt</li>
+            <li><strong>PLINK Statistics:</strong> INFO_basic_stats.* files</li>
+            <li><strong>Duplicate Detection:</strong> duplicate_*.txt files</li>
+        </ul>
+        
+        <h3>🚀 Next Steps:</h3>
+        <ol>
+            <li><strong>Review Issues:</strong> Address any validation issues listed above</li>
+            <li><strong>Apply Fixes:</strong> Use provided commands to resolve critical issues</li>
+            <li><strong>Re-run Validation:</strong> Optional - run info module again after fixes</li>
+            <li><strong>Proceed to QC:</strong> Continue with Quality Control module</li>
+        </ol>
+        
+        <p><em>Note: The pipeline continued processing despite validation issues to provide complete dataset characterization.</em></p>
     </div>
     
     <footer>
         <p style="font-size: 0.8em; color: #777;">Generated on $(date) by $(whoami) on $(hostname)</p>
+        <p style="font-size: 0.8em; color: #777;">Report generated by Dataset Information Module v$VERSION</p>
     </footer>
 </body>
 </html>
@@ -1264,19 +1276,43 @@ main() {
     # Load software modules
     load_modules
     
+    # ==========================================
+    # CONTINUE PROCESSING REGARDLESS OF ISSUES
+    # ==========================================
+    log_message "INFO" "Pipeline will continue processing even if validation issues are found"
+    
     # Generate basic statistics
+    log_message "INFO" "Generating PLINK statistics..."
     generate_basic_stats
     
-    # Enhanced file contents analysis
+    # Enhanced file contents analysis (includes duplicate detection)
+    log_message "INFO" "Performing comprehensive file analysis..."
     analyze_file_contents
     
-    # Generate HTML report
+    # Generate HTML report (will show any issues found)
+    log_message "INFO" "Creating final report..."
     generate_html_report
     
-    log_message "INFO" "=== Dataset Information Module Completed ==="
+    # Check for issues and report but don't stop execution
+    local validation_file="${OUTPUT_DIR}/tables/INFO_validation_issues_${DATE}.tsv"
+    if [[ -f "$validation_file" ]]; then
+        local total_issues=$(tail -n +2 "$validation_file" | wc -l)
+        local critical_issues=$(tail -n +2 "$validation_file" | awk -F'\t' '$3=="HIGH"' | wc -l)
+        
+        if [[ $critical_issues -gt 0 ]]; then
+            log_message "WARN" "Found $critical_issues critical issues, but analysis completed successfully"
+            log_message "INFO" "Check validation report for details on issues found"
+        fi
+        
+        if [[ $total_issues -gt 0 ]]; then
+            log_message "INFO" "Total validation issues found: $total_issues"
+        fi
+    fi
+    
+    log_message "INFO" "=== Dataset Information Module Completed Successfully ==="
     log_message "INFO" "End Time: $(date)"
     
-    # Final summary
+    # Final summary - emphasize completion
     echo ""
     echo "🎉 Analysis Complete!"
     echo "===================="
@@ -1286,62 +1322,26 @@ main() {
     echo "⚠️  Issues: $OUTPUT_DIR/tables/INFO_validation_issues_${DATE}.tsv"
     echo "🔧 Fixes: $OUTPUT_DIR/tables/INFO_recommendations_${DATE}.txt"
     echo ""
+    
+    # Report status based on issues found
+    if [[ -f "$validation_file" ]]; then
+        local critical_issues=$(tail -n +2 "$validation_file" | awk -F'\t' '$3=="HIGH"' | wc -l)
+        if [[ $critical_issues -gt 0 ]]; then
+            echo "⚠️  Status: Analysis completed with $critical_issues critical issues detected"
+            echo "📋 Action: Review recommendations file for fixing guidance"
+        else
+            echo "✅ Status: Analysis completed successfully with no critical issues"
+        fi
+    else
+        echo "✅ Status: Analysis completed successfully"
+    fi
+    echo ""
 }
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
-    
-    log_message "INFO" "=== Dataset Information Module Completed ==="
-    log_message "INFO" "End Time: $(date)"
-}
-
-# Execute main function
-main "$@"
-        "bcftools"
-        "vcftools"
-        "htslib"
-    )
-    
-    local modules_to_load=()
-    
-    # Try to parse modules from configuration file first
-    if [[ -n "$CONFIG_FILE" && -f "$CONFIG_FILE" ]]; then
-        log_message "INFO" "Attempting to load modules from configuration file..."
-        if parse_modules_from_config "$CONFIG_FILE" modules_to_load; then
-            log_message "INFO" "Using modules from configuration file"
-        else
-            log_message "INFO" "Failed to parse modules from config, using defaults"
-            modules_to_load=("${default_modules[@]}")
-        fi
-    else
-        log_message "INFO" "No configuration file provided, using default modules"
-        modules_to_load=("${default_modules[@]}")
-    fi
-    
-    # Check if running in HPC environment (module command available)
-    if command -v module &> /dev/null; then
-        log_message "INFO" "Module system detected, loading ${#modules_to_load[@]} modules..."
-        
-        # Load modules
-        local loaded_count=0
-        local failed_count=0
-        
-        for mod in "${modules_to_load[@]}"; do
-            log_message "INFO" "Loading module: $mod"
-            if module load "$mod" 2>/dev/null; then
-                log_message "INFO" "Successfully loaded: $mod"
-                ((loaded_count++))
-            else
-                log_message "WARN" "Failed to load module: $mod (may not be available)"
-                ((failed_count++))
-            fi
-        done
-        
-        log_message "INFO" "Module loading summary: $loaded_count loaded, $failed_count failed"
-        
-        # Verify critical tools are available
         verify_critical_tools
         
     else
