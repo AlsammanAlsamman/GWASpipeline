@@ -42,6 +42,7 @@
 # INPUTS: [Required input files and formats]
 # OUTPUTS: [Generated files and their purposes]
 # USAGE: [Clear command example]
+# AUTHOR: Alsamman M. Alsamman
 # =============================================================================
 ```
 
@@ -56,7 +57,7 @@
 
 ### ⚙️ **Config File Support**
 - **Format**: YAML
-- **Parameters**: MAF, HWE, missingness, IBD thresholds
+- **Parameters**: MAF, HWE, missingness, IBD thresholds, and other
 - **Template**: `--conftemp` generates example config
 
 ### 📝 **Parameter Management**
@@ -119,17 +120,7 @@
 
 ### 🔄 **Reproducibility Features**
 - **Config Archive**: Save exact parameters used
-- **Dry Run**: `--dry-run` shows commands without execution
 - **Version Control**: Log software versions and parameters
-
----
-
-## 6️⃣ Special Requirements
-
-### 🔍 **Information Module Priority**
-- **Must Generate**: Both summary tables AND visual plots
-- **Comprehensive Stats**: Sample counts, MAF distributions, quality metrics
-- **Visual Outputs**: Histograms, scatter plots, summary charts
 
 ### ♻️ **Code Reuse Policy**
 - **Priority**: Use existing validated scripts when possible
@@ -138,26 +129,49 @@
 
 ---
 
-## 🚦 Quick Start Workflow
+## 7️⃣ Lessons Learned & Best Practices
 
-1. **Design Phase**
-   - [ ] Define module purpose and scope
-   - [ ] Plan input/output file structure
-   - [ ] Choose appropriate tools and methods
+#### **SLURM Integration Enhancements**
+- **Auto-Submit Option**: Add `--submit` flag to automatically run `sbatch` after generating script
+- **Module Discovery**: Provide tools to identify available modules on specific HPC systems
+- **Fallback Loading**: Implement smart module loading with version fallbacks
 
-2. **Development Phase**
-   - [ ] Create script template with documentation
-   - [ ] Implement config file support
-   - [ ] Add error handling and logging
-   - [ ] Generate SLURM submission script
+#### **Configuration Management**
+- **YAML Parsing Issues**: Simple `grep`/`sed` approach more reliable than complex regex
+- **Module Specification**: Allow multiple module versions in config for compatibility
+- **Environment Detection**: Auto-detect HPC vs standalone environments
 
-3. **Testing Phase**
-   - [ ] Test with sample data
-   - [ ] Validate all output files generated
-   - [ ] Verify error handling works
-   - [ ] Check SLURM job submission
+#### **YAML Configuration**
+- **Keep It Simple**: Use straightforward parsing methods
+- **Clear Documentation**: Include examples for different HPC environments
 
-4. **Deployment Phase**
-   - [ ] Final documentation review
-   - [ ] Integration testing with pipeline
-   - [ ] Performance optimization if needed
+### 📝 **Common Pitfalls & Solutions**
+
+#### **Issue**: "No modules found in configuration file"
+**Solution**: Use simple `grep`/`sed` parsing instead of complex regex
+
+#### **Issue**: Module version not available on HPC system
+**Solution**: Implement fallback to generic module names
+
+#### **Issue**: Different module names across HPC systems
+**Solution**: Provide discovery tools and flexible configuration options
+
+#### **Issue**: Manual SLURM script submission
+**Solution**: Add `--submit` option for automatic job submission
+
+### 🚀 **Enhanced Workflow**
+
+#### **Module Development Process**
+1. **Start Simple**: Basic functionality first
+2. **Test Early**: Use discovery tools to identify system capabilities
+
+#### **User Experience Improvements**
+- **One-Command Submission**: `--submit` for direct job submission
+- **Environment Setup**: Auto-detect and configure for user's system
+- **Clear Error Messages**: Specific guidance for missing tools/modules
+- **Flexible Configuration**: Support various HPC environments
+
+### 🎯 **Key Takeaways**
+
+1. **Simplicity Over Complexity**: Simple parsing often more reliable than sophisticated regex
+2. **Flexibility is Key**: Support multiple module versions and naming conventions

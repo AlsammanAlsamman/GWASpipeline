@@ -19,6 +19,7 @@ CONFIG_FILE=""
 DRY_RUN=false
 VERBOSE=false
 SLURM_SUBMIT=false
+SLURM_AUTO_SUBMIT=false
 
 # Help function
 show_help() {
@@ -38,6 +39,7 @@ OPTIONAL ARGUMENTS:
     --dry-run               Show commands without executing
     --verbose               Enable verbose output
     --slurm                 Generate SLURM submission script
+    --submit                Generate and submit SLURM job automatically
     --help                  Show this help message
 
 OUTPUTS:
@@ -55,8 +57,11 @@ EXAMPLES:
     # With configuration file
     $0 --plink-prefix /data/mydata --output-dir results/info --config config.yaml
     
-    # Generate SLURM job
+    # Generate SLURM job script
     $0 --plink-prefix /data/mydata --output-dir results/info --slurm
+    
+    # Generate and automatically submit SLURM job
+    $0 --plink-prefix /data/mydata --output-dir results/info --submit
 
 EOF
 }
@@ -212,6 +217,160 @@ EOF
         echo "Note: Using default modules. Create a config file to customize."
     fi
     exit 0
+}
+
+# Generate and submit SLURM job automatically
+generate_and_submit_slurm_job() {
+    log_message "INFO" "Generating and submitting SLURM job..."
+    
+    local slurm_script="${OUTPUT_DIR}/submit_info_module.sh"
+    
+    # Parse modules from config file if available
+    local modules_for_slurm=()
+    if [[ -n "$CONFIG_FILE" && -f "$CONFIG_FILE" ]]; then
+        if parse_modules_from_config "$CONFIG_FILE" modules_for_slurm; then
+            log_message "INFO" "Using ${#modules_for_slurm[@]} modules from configuration for SLURM script"
+        else
+            log_message "INFO" "Using default modules for SLURM script"
+            modules_for_slurm=(
+                "plink2/1.90b3w"
+                "R"
+                "bcftools"
+                "vcftools"
+                "htslib"
+                "samtools"
+                "bedtools"
+                "tabix"
+            )
+        fi
+    else
+        log_message "INFO" "No configuration file, using default modules for SLURM script"
+        modules_for_slurm=(
+            "plink2/1.90b3w"
+            "R"
+            "bcftools"
+            "vcftools"
+            "htslib"
+            "samtools"
+            "bedtools"
+            "tabix"
+        )
+    fi
+    
+    cat > "$slurm_script" << EOF
+#!/bin/bash
+#SBATCH --job-name=info_module
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=8G
+#SBATCH --time=02:00:00
+#SBATCH --mail-user=alsammana@omrf.org
+#SBATCH --mail-type=ALL
+#SBATCH --output=${OUTPUT_DIR}/logs/info_module_%j.out
+#SBATCH --error=${OUTPUT_DIR}/logs/info_module_%j.err
+
+# =============================================================================
+# Load Required Software Modules
+# =============================================================================
+$(if [[ -n "$CONFIG_FILE" ]]; then
+    echo "# Modules loaded from configuration file: $CONFIG_FILE"
+else
+    echo "# Using default module configuration"
+fi)
+
+echo "Loading required modules..."
+EOF
+
+    # Add module load commands dynamically
+    for module in "${modules_for_slurm[@]}"; do
+        cat >> "$slurm_script" << EOF
+module load $module
+EOF
+    done
+    
+    cat >> "$slurm_script" << EOF
+
+# Verify critical modules are loaded
+echo "Checking loaded modules..."
+module list
+
+# Verify critical tools are available
+echo "Verifying critical tools..."
+critical_tools=("plink" "R")
+missing_tools=()
+
+for tool in "\${critical_tools[@]}"; do
+    if command -v "\$tool" &> /dev/null; then
+        echo "✅ \$tool found: \$(which \$tool)"
+    else
+        echo "❌ \$tool not found"
+        missing_tools+=("\$tool")
+    fi
+done
+
+if [ \${#missing_tools[@]} -gt 0 ]; then
+    echo "ERROR: Missing critical tools: \${missing_tools[*]}"
+    echo "Please check module loading or contact system administrator"
+    exit 1
+fi
+
+echo "All required modules loaded successfully"
+
+# =============================================================================
+# Run the Information Module
+# =============================================================================
+$(realpath "$0") --plink-prefix "${PLINK_PREFIX}" --output-dir "${OUTPUT_DIR}" $([ -n "$CONFIG_FILE" ] && echo "--config $CONFIG_FILE")
+
+EOF
+    
+    chmod +x "$slurm_script"
+    log_message "INFO" "SLURM submission script created: $slurm_script"
+    
+    # Check if sbatch is available
+    if ! command -v sbatch &> /dev/null; then
+        log_message "ERROR" "sbatch command not found. Cannot submit job automatically."
+        log_message "INFO" "You can manually submit with: sbatch $slurm_script"
+        exit 1
+    fi
+    
+    # Submit the job
+    log_message "INFO" "Submitting job with sbatch..."
+    local job_output
+    job_output=$(sbatch "$slurm_script" 2>&1)
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        local job_id=$(echo "$job_output" | grep -o '[0-9]\+' | tail -1)
+        log_message "INFO" "Job submitted successfully!"
+        log_message "INFO" "Job ID: $job_id"
+        log_message "INFO" "SLURM output: $job_output"
+        
+        echo ""
+        echo "🚀 SLURM Job Submitted Successfully!"
+        echo "====================================="
+        echo "Job ID: $job_id"
+        echo "Script: $slurm_script"
+        echo "Output logs: ${OUTPUT_DIR}/logs/info_module_${job_id}.out"
+        echo "Error logs: ${OUTPUT_DIR}/logs/info_module_${job_id}.err"
+        echo ""
+        echo "Monitor job status with:"
+        echo "  squeue -j $job_id"
+        echo "  scontrol show job $job_id"
+        echo ""
+        echo "Cancel job if needed with:"
+        echo "  scancel $job_id"
+        
+        if [[ -n "$CONFIG_FILE" ]]; then
+            echo ""
+            echo "Configuration used: $CONFIG_FILE"
+            echo "Modules to be loaded: ${modules_for_slurm[*]}"
+        fi
+        
+    else
+        log_message "ERROR" "Failed to submit job!"
+        log_message "ERROR" "sbatch output: $job_output"
+        log_message "INFO" "You can manually submit with: sbatch $slurm_script"
+        exit 1
+    fi
 }
 
 # Logging function
@@ -821,6 +980,10 @@ while [[ $# -gt 0 ]]; do
             SLURM_SUBMIT=true
             shift
             ;;
+        --submit)
+            SLURM_AUTO_SUBMIT=true
+            shift
+            ;;
         --help)
             show_help
             ;;
@@ -845,11 +1008,26 @@ if [[ -z "$OUTPUT_DIR" ]]; then
     exit 1
 fi
 
+# Validate conflicting options
+if [[ "$SLURM_SUBMIT" == "true" && "$SLURM_AUTO_SUBMIT" == "true" ]]; then
+    echo "Error: Cannot use both --slurm and --submit options together"
+    echo "Use --slurm to generate script only, or --submit to generate and submit automatically"
+    exit 1
+fi
+
 # Generate SLURM script if requested
 if [[ "$SLURM_SUBMIT" == "true" ]]; then
     mkdir -p "$OUTPUT_DIR/logs"
     generate_slurm_script
 fi
 
-# Run main analysis
-main
+# Generate and submit SLURM job if requested
+if [[ "$SLURM_AUTO_SUBMIT" == "true" ]]; then
+    mkdir -p "$OUTPUT_DIR/logs"
+    generate_and_submit_slurm_job
+fi
+
+# Run main analysis (only if not generating/submitting SLURM jobs)
+if [[ "$SLURM_SUBMIT" == "false" && "$SLURM_AUTO_SUBMIT" == "false" ]]; then
+    main
+fi
