@@ -1,0 +1,71 @@
+# =============================================================================
+# Dataset Information Module Configuration Template
+# =============================================================================
+
+# Analysis Parameters
+analysis:
+  detailed_chr_stats: true       # Generate per-chromosome statistics
+  phenotype_analysis: true       # Analyze phenotype distributions
+  population_structure: false    # Basic population structure analysis (PCA preview)
+  
+# Plotting Options
+plots:
+  histogram_bins: 50             # Number of bins for histograms
+  figure_width: 10               # Plot width in inches
+  figure_height: 8               # Plot height in inches
+  dpi: 300                       # Plot resolution
+  
+# Output Options
+output:
+  generate_html_report: true     # Create comprehensive HTML report
+  save_intermediate_files: true  # Keep intermediate PLINK output files
+  compress_plots: false          # Compress plot files (PNG vs PDF)
+
+# Software Modules (for HPC environments)
+modules:
+  load_modules: true                    # Enable module loading
+  module_commands:
+    # Try multiple versions for compatibility with different HPC systems
+    - "module load plink/1.9"          # PLINK for genetic data analysis
+    - "module load plink/1.90"         # Alternative PLINK version
+    - "module load plink/1.07"         # Older PLINK version (fallback)
+    - "module load R/4.3.0"            # R for statistical analysis and plotting
+    - "module load R/4.2.0"            # Alternative R version
+    - "module load R/4.0.0"            # Older R version (fallback)
+    - "module load python/3.9"         # Python for data processing
+    - "module load python/3.8"         # Alternative Python version
+    - "module load python3/3.9"        # Alternative Python3 module name
+    - "module load bcftools/1.15"      # BCFtools for VCF file handling
+    - "module load bcftools/1.12"      # Alternative BCFtools version
+    - "module load vcftools/0.1.16"    # VCFtools for VCF manipulation
+    - "module load htslib/1.15"        # HTSlib for genomic file formats
+    - "module load samtools/1.15"      # SAMtools for sequence alignment files
+    - "module load bedtools/2.30"      # BEDtools for genomic intervals
+    - "module load tabix/1.15"         # Tabix for indexing
+    - "module load bgzip/1.15"         # BGzip for compression
+  
+  # Fallback: Try loading modules without version numbers
+  module_fallbacks:
+    - "module load plink"              # Generic PLINK
+    - "module load R"                  # Generic R
+    - "module load python"             # Generic Python
+    - "module load python3"            # Generic Python3
+    - "module load bcftools"           # Generic BCFtools
+    - "module load vcftools"           # Generic VCFtools
+    - "module load htslib"             # Generic HTSlib
+    - "module load samtools"           # Generic SAMtools
+  
+  # Alternative: Custom module paths (if modules are not in standard locations)
+  custom_paths:
+    plink: "/opt/plink/1.9/plink"      # Custom PLINK path
+    plink2: "/opt/plink2/2.0/plink2"   # Custom PLINK2 path
+    R: "/opt/R/4.3.0/bin/R"            # Custom R path
+    python: "/opt/python/3.9/bin/python" # Custom Python path
+    bcftools: "/opt/bcftools/1.15/bin/bcftools" # Custom BCFtools path
+
+# Resource Settings (for SLURM)
+resources:
+  cpus: 4
+  memory_gb: 8
+  time_hours: 2
+  email: "alsammana@omrf.org"

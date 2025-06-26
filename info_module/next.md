@@ -1,0 +1,2 @@
+The script is runing good, but I though it can better if the main can run of bash too.
+There is other ideas that I dont think it would matter like MAF distribution and otherthigns , this is just acheckup 
