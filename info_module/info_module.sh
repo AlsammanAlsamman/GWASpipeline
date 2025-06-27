@@ -1342,13 +1342,6 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
-        verify_critical_tools
-        
-    else
-        log_message "INFO" "No module system detected, assuming tools are in PATH"
-        verify_critical_tools
-    fi
-}
 
 # Verify that critical tools are available
 verify_critical_tools() {
@@ -1772,4 +1765,22 @@ $(if [[ "$has_issues" == "true" ]]; then
         echo '        <p>See validation section below and check the recommendations file for detailed fixes.</p>'
         echo '    </div>'
     else
-       
+        echo '    <div class="alert alert-warning">'
+        echo "        <h3>🟡 Minor Issues Found</h3>"
+        echo "        <p>Some minor issues detected. Check the recommendations file for improvements.</p>"
+        echo '    </div>'
+    fi
+else
+    echo '    <div class="alert alert-success">'
+    echo "        <h3>✅ Validation Passed!</h3>"
+    echo "        <p>No critical issues found. Dataset appears ready for analysis.</p>"
+    echo '    </div>'
+fi)
+
+    </div>
+</body>
+</html>
+EOF
+
+    log_message "INFO" "HTML report generated: $report_file"
+}
