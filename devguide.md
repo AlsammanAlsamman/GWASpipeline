@@ -65,6 +65,19 @@
 - **Logging**: Record all parameters used (from file or defaults)
 - **Validation**: Check parameter ranges and compatibility
 
+### 🎨 **Configuration File Formatting**
+- **Section Headers**: Use descriptive comments with context
+  ```yaml
+  # Module Loading (for HPC environments)
+  modules:
+    plink: "plink2/1.90b3w"     # PLINK module to load
+    python: "python"           # Python module to load
+  ```
+- **Inline Comments**: Explain purpose and acceptable values for each parameter
+- **Grouping**: Organize related parameters under logical sections
+- **Examples**: Include example values and format specifications
+- **Documentation**: Each section should be self-explanatory with clear descriptions
+
 ---
 
 ## 3️⃣ HPC & SLURM Integration
@@ -175,3 +188,7 @@
 
 1. **Simplicity Over Complexity**: Simple parsing often more reliable than sophisticated regex
 2. **Flexibility is Key**: Support multiple module versions and naming conventions
+
+
+## PLINK
+Always allow no sex samples

@@ -1,0 +1,54 @@
+# PLINK Data Fixer Module Configuration Template
+# =============================================================================
+# This configuration file controls the behavior of the PLINK Data Fixer Module
+# Copy this file and modify the parameters as needed for your analysis
+#
+# IMPORTANT: When SNPs are removed due to duplicate chr:pos, the module uses
+# PLINK to ensure .bed, .bim, and .fam files remain synchronized. Make sure
+# PLINK is available in your PATH for proper binary genotype file handling.
+# =============================================================================
+
+# Sample ID Fixing Parameters
+sample_fixing:
+  fix_duplicates: true           # Fix duplicated sample IDs
+  fix_invalid_chars: true        # Fix invalid characters in sample names
+  allowed_chars: "A-Za-z0-9_-"   # Allowed characters in sample names (regex pattern)
+  duplicate_suffix: "_dup"       # Suffix for duplicate sample resolution
+  
+# SNP Fixing Parameters  
+snp_fixing:
+  fix_duplicate_rsid: true       # Replace duplicate rsIDs with '.'
+  fix_duplicate_chrpos: true     # Remove SNPs with duplicate chr:pos
+  keep_first_duplicate: true     # Keep first occurrence of duplicate chr:pos (if false, removes all)
+  
+# Output Options
+output:
+  generate_reports: true         # Generate detailed fixing reports
+  archive_originals: true        # Archive original files in archive/ subdirectory
+  create_plots: true            # Create visualization plots (requires Python with matplotlib)
+
+# Processing Options
+processing:
+  check_file_integrity: true    # Verify file integrity before processing
+  backup_intermediate: false    # Keep intermediate files for debugging
+  verbose_logging: true         # Enable detailed logging output
+
+# HPC/SLURM Configuration
+hpc:
+  auto_submit: false            # Automatically submit SLURM job when --submit flag is used
+  job_name: "fixer_module"      # SLURM job name
+  cpus: 4                       # Number of CPUs to request
+  memory: "32G"                  # Memory to request
+  time_limit: "02:00:00"        # Time limit for job
+  email: "alsammana@omrf.org"   # Email for job notifications
+  
+# Module Loading (for HPC environments)
+modules:
+  plink: "plink2/1.90b3w"     # PLINK module to load
+  python: "python"         # Python module to load
+  
+# Advanced Options
+advanced:
+  chunk_size: 10000            # Process files in chunks (for very large datasets)
+  parallel_processing: false   # Enable parallel processing (experimental)
+  temp_directory: "/tmp"       # Temporary directory for intermediate files
